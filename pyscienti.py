@@ -1,34 +1,21 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
 from bs4 import BeautifulSoup
 from sjr import Journal
-from urllib3.exceptions import InsecureRequestWarning
 import pandas as pd
 from hashlib import md5
-from random import random, uniform
 import requests
-from time import sleep
 import urllib3
-from shutil import rmtree
 import pickle
 import glob
 import os
 import xlsxwriter
 
 
-_GOOGLEID = md5(str(random()).encode('utf-8')).hexdigest()[:16]
-_COOKIES = {'GSP': 'ID={0}:CF=4'.format(_GOOGLEID)}
-_HEADERS = {
-    'accept-language': 'en-US,en',
-    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/41.0.2272.76 Chrome/41.0.2272.76 Safari/537.36',
-    'accept': 'text/html,application/xhtml+xml,application/xml'
-    }
 _SESSION = requests.Session()
 revistas = pd.read_excel(r'publindex.xlsx', header = 0)
 countries = ['Estados Unidos','Reino Unido','Alemania','Francia','Inglaterra','Colombia','Suiza','Pakistan','Israel','Venezuela','Países Bajos','España','Italia','Eslovenia','China'  ]
 def _get_page(pagerequest):
-    requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
-    sleep(5+uniform(0, 5))
-    resp = _SESSION.get(pagerequest, headers=_HEADERS, cookies=_COOKIES,verify = False)
+    requests.packages.urllib3.disable_warnings(category=urllib3.exceptions.InsecureRequestWarning)
+    resp = _SESSION.get(pagerequest)
     if resp.status_code == 200:
         return resp.text
     if resp.status_code == 503:
@@ -417,7 +404,9 @@ class Group(object):
     def to_xlsx(self):
         os.makedirs('../Informacion Grupos',exist_ok=True)
         self.fill_group()
-        with pd.ExcelWriter('../Informacion Grupos/'+self.name.replace('/','').replace('+','').replace(':','')+'.xlsx', engine='xlsxwriter') as writer:
+        filename = ''.join(e for e in self.name if e.isalnum())
+
+        with pd.ExcelWriter('../Informacion Grupos/' + filename + '.xlsx', engine='xlsxwriter') as writer:
             a = pd.DataFrame()
             name = [self.name, self.link]
             cat = [self.data['Clasificación']]
@@ -429,8 +418,8 @@ class Group(object):
             else:
                 integ = [x[0] for x in self.investigadores]
                 cvlac = [x[1] for x in self.investigadores]
-            lineas = self.lineas_de_inv
-            inst = self.instituciones
+            lineas = self.lineas_de_inv.copy()
+            inst = self.instituciones.copy()
             if len(lineas)>len(integ):
                 while len(name) != len(lineas):
                     name.append('')
@@ -508,29 +497,38 @@ def create_author_obj(links,xlsx):
     os.makedirs('../CvLAC',exist_ok=True)
     files = glob.glob("../CvLAC/*.obj")
     for i in links:
-        if isinstance(i, float) or isinstance(i, int) or (len(str(i))<15):
-            i = get_cvlac_link(i)
-        if i and '../CvLAC\\'+ i[-10:]+'.obj' not in files:
-            a = Author(i)
-            if xlsx:
-                a.to_xlsx()
-            a.save_author()
-            print(a.name)
+        try:
+            if isinstance(i, float) or isinstance(i, int) or (len(str(i))<15):
+                i = get_cvlac_link(i)
+            if i and '../CvLAC\\'+ i[-10:]+'.obj' not in files:
+                a = Author(i)
+                if xlsx:
+                    a.to_xlsx()
+                a.save_author()
+                print(a.name)
+        except:
+            print( 'Hay un problema con ' + i)
 
 
-def create_group_obj(links):
+
+def create_group_obj(links,xlsx):
     """Crear los objetos de los grupos de investigación"""
     
     os.makedirs('../GrupLAC',exist_ok=True)
     files = glob.glob("../GrupLAC/*.obj")
     
     for i in links.tolist():
-        if len(i)<15:
-            i = get_gruplac_link(i)
+        try:
+            if len(i)<15:
+                i = get_gruplac_link(i)
 
-        if not '../GrupLAC\\'+i[-14:]+'.obj' in files:
+            if not '../GrupLAC\\'+i[-14:]+'.obj' in files:
                 a = Group(i)
+                if xlsx:
+                    a.to_xlsx()
                 a.save_group()
+        except:
+            print( 'Hay un problema con ' + i)
 
 
 def CVLac():
@@ -569,7 +567,7 @@ def create_group_xlsx():
             a = pickle.load(open(i,'rb'))
             a.to_xlsx()
         except:
-            return 'Hay un problema con ' + i
+            print( 'Hay un problema con ' + i)
 
 def create_group_xlsx_com(lista_names,lista_cvlac):
     """Si ya existen los objetos de los grupos, crear un archivo xlsx con el resumen de cada uno de ellos si tienen investigadores en común con una lista"""
@@ -582,7 +580,7 @@ def create_group_xlsx_com(lista_names,lista_cvlac):
             a.get_common_inv(lista_names,lista_cvlac)
             a.to_xlsx()
         except:
-            return 'Hay un problema con ' + i
+            print( 'Hay un problema con ' + i)
 
 
 
@@ -598,7 +596,6 @@ def create_groups_resume():
         groups.append(obj)
     with pd.ExcelWriter('../groups.xlsx') as writer:
         for i in groups:
-            print(i.name)
             for j in i.instituciones:
                 institucion.append(j)
                 names.append(i.name)
@@ -641,10 +638,11 @@ def create_groups_resume():
             a['Instituciones'] = inst
             a['integrantes'] = integ
             a['Lineas'] = lineas
-            if len(i.name) >31:                
-                a.to_excel(writer,sheet_name = i.name[:31], index = False)
+            filename = ''.join(e for e in i.name if e.isalnum())
+            if len(filename) >31:                
+                a.to_excel(writer,sheet_name = filename[:31], index = False)
             else:
-                a.to_excel(writer,sheet_name = i.name[:31], index = False)
+                a.to_excel(writer,sheet_name = filename, index = False)
 
     b = pd.DataFrame()
     b['Nombre del Grupo'] = names
@@ -675,8 +673,4 @@ def get_cvlac_link(code):
     return code
     
 
-def clean_old_files():
-    rmtree('../CvLAC',ignore_errors=True)
-    rmtree('../GrupLAC',ignore_errors=True)
-    rmtree('../Informacion Grupos',ignore_errors=True)
-    rmtree('../Autores CvLAC',ignore_errors=True)
+create_groups_resume()

@@ -1,6 +1,8 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import pyscienti as pys
 from tkinter import filedialog
+from shutil import rmtree
+from os import remove
 import pandas as pd
 
 class Ui_MainWindow(object):
@@ -61,7 +63,7 @@ class Ui_MainWindow(object):
         self.group_btn.clicked.connect(self.group_xls)
         self.groups_btn.clicked.connect(self.groups_xls)
         self.com_btn.clicked.connect(self.com_xls)
-        self.clean_btn.clicked.connect(pys.clean_old_files)
+        self.clean_btn.clicked.connect(self.clean_old_files)
 
 
     def author_xls(self):
@@ -70,9 +72,12 @@ class Ui_MainWindow(object):
             self.label_4.setText(pys.Author(self.author_text.toPlainText()).to_xlsx())
         except:
             self.label_4.setText('Hay un problema con el enlace o código, o el perfil del investigador está vacío.')
+
+
     def group_xls(self):
+        self.label_4.setText("")
         try:
-            pys.Group(self.group_text.toPlainText()).to_xlsx()
+            self.label_4.setText(pys.Group(self.group_text.toPlainText()).to_xlsx())
         except:
             self.label_4.setText('Hay un problema con el enlace o código, o el perfil del grupo está vacío.')
 
@@ -85,6 +90,7 @@ class Ui_MainWindow(object):
                 lista = lista[lista['CvLAC'].notna()]
                 pys.create_author_obj(lista['CvLAC'],True)
                 pys.create_authors_xlsx()
+                self.label_4.setText('Finalizado')
             except:
                 self.label_4.setText('Verifique que el archivo cumpla con los requisitos especificados en el manual')
 
@@ -96,9 +102,9 @@ class Ui_MainWindow(object):
             try:
                 groups = pd.read_excel(path, sheet_name = 'Grupos')
                 groups = groups[groups['GrupLAC'].notna()]        
-                pys.create_group_obj(groups['Código'])
-                pys.create_group_xls()
+                pys.create_group_obj(groups['GrupLAC'], True)
                 pys.create_groups_resume()
+                self.label_4.setText('Finalizado')
             except:
                 self.label_4.setText('Verifique que el archivo cumpla con los requisitos especificados en el manual')
 
@@ -119,8 +125,28 @@ class Ui_MainWindow(object):
                 pys.create_group_xlsx_com(lista['Nombre'],lista['CvLAC'])
                 pys.create_groups_resume()
                 pys.create_authors_xlsx()
+                self.label_4.setText('Finalizado')
             except:
                 self.label_4.setText('Verifique que el archivo cumpla con los requisitos especificados en el manual')
+    def clean_old_files(self):
+        rmtree('../CvLAC',ignore_errors=True)
+        rmtree('../GrupLAC',ignore_errors=True)
+        rmtree('../Informacion Grupos',ignore_errors=True)
+        rmtree('../Autores CvLAC',ignore_errors=True)
+        try:
+            remove('../resumen.xlsx')
+        except:
+            pass
+        try:
+            remove('../groups.xlsx')
+        except:
+            pass
+        try:
+            remove('../cvlac.xlsx')
+        except:
+            pass
+
+        self.label_4.setText('Archivos eliminados')
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
