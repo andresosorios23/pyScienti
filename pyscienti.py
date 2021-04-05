@@ -13,6 +13,7 @@ import xlsxwriter
 _SESSION = requests.Session()
 revistas = pd.read_excel(r'publindex.xlsx', header = 0)
 countries = ['Estados Unidos','Reino Unido','Alemania','Francia','Inglaterra','Colombia','Suiza','Pakistan','Israel','Venezuela','Países Bajos','España','Italia','Eslovenia','China'  ]
+
 def _get_page(pagerequest):
     requests.packages.urllib3.disable_warnings(category=urllib3.exceptions.InsecureRequestWarning)
     resp = _SESSION.get(pagerequest)
@@ -24,8 +25,7 @@ def _get_page(pagerequest):
         raise Exception('Error: {0} {1}'.format(resp.status_code, resp.reason))
 
 def _get_soup(page):
-    html = page
-    html = html.replace(u'\xa0', u' ')
+    html = page.replace('\xa0', u' ')
     return BeautifulSoup(html, 'html.parser')
 
 def mix_list(list1,list2):
@@ -140,22 +140,19 @@ class Author(object):
         self.filled = False
         df_list = pd.read_html(self.html)
         soup = _get_soup(self.html)
-        cv = {x[0]: x[1] for x in df_list[1].values.tolist()}
-        if 'Nombre' in cv:
-            self.name = cv['Nombre'].replace('\xa0', u' ')
-        if 'Categoría' in cv:
-            self.category = cv['Categoría']
-        if 'Sexo' in cv:
-            self.gender = cv['Sexo']
-        if 'Par evaluador reconocido por Minciencias.' in cv:
-            self.acknowledgment = True
-        else:
-            self.acknowledgment = False
+
+
+        self.cv = {x[0]: x[1].replace('\xa0',' ') for x in df_list[1].values.tolist()}
+
+
         art = []
         for i in df_list:
             if i.isin(['Artículos']).values.any():
                 art = i.values.tolist()
+                break
+
         articles_raw = list(set([x for i in art for x in i]))
+
         deletions = ['Artículos','Producción bibliográfica - Artículo - Publicado en revista especializada','Producción bibliográfica - Artículo - Revisión (Survey)','Producción bibliográfica - Artículo - Corto (Resumen)']
         for i in deletions:
             if i in articles_raw:
@@ -176,27 +173,24 @@ class Author(object):
             if i in book_raw:
                 book_raw.remove(i)        
         self.books = list()
-        for i in book_raw:
-            self.books.append(Publication(i,'book',False).pub_dict())
-
-
+        for book in book_raw:
+            self.books.append(Publication(book,'book',False).pub_dict())
+        
+        #info = {}
+        # for df in df_list:
+        #     if 'Nombre del evento' in df.values[0]:
+        #         pass
+        #     else:
+        #         info[df[0]] = info[df[1:]]
+                
     def to_xlsx(self):
         df_list = pd.read_html(self.html)
         os.makedirs('../Autores CvLAC',exist_ok=True)    
 
 
-        with pd.ExcelWriter('../Autores CvLAC/'+self.name+'.xlsx', engine='xlsxwriter') as writer:
-            print(self.name)
-            a = pd.DataFrame()
-            a['Nombre'] = [self.name]
-            try:
-                a['Categoria'] = [self.category]
-            except:
-                pass
-            try:
-                a['Género'] = [self.gender]
-            except:
-                pass
+        with pd.ExcelWriter('../Autores CvLAC/'+self.cv['Nombre']+'.xlsx', engine='xlsxwriter') as writer:
+            print(self.cv['Nombre'])
+            a = pd.DataFrame(self.cv, index = [0])
             a.to_excel(writer,sheet_name = 'Información Básica', index = False)
 
             a = pd.DataFrame()
@@ -218,7 +212,7 @@ class Author(object):
                     a.to_excel(writer,sheet_name = 'Libros', index = False)
 
                 for i in df_list[8:]:
-                    if i.values[0][0] == 'Artículos' or 'Nombre del evento' or 'Libros' in i.values[0][0]:
+                    if i.values[0][0] == 'Artículos' or i.values[0][0] == 'Nombre del evento' or i.values[0][0] == 'Libros' or 'Nombre del evento' in i.values[0][0]:
                         pass
                     else:
                         if len(i.columns)>1:
@@ -226,11 +220,12 @@ class Author(object):
                         auxname = i.values[0][0]
                         i.columns = [auxname]
                         i = i.iloc[1:,]
-                        if len(auxname.replace('/',''))>30:
+
+                        if len(auxname.replace('/','')) > 30:
                             i.to_excel(writer,sheet_name = auxname.replace('/','').replace(':','')[:30], index = False)
                         else:
                             i.to_excel(writer,sheet_name = auxname.replace('/','')[:30], index = False)
-        return self.name
+        return self.cv['Nombre']
 
     def fill(self):
 
@@ -471,8 +466,6 @@ class Group(object):
                             a = a.append(k, ignore_index=True) 
                         a.to_excel(writer,sheet_name = j, index = False)
 
-
-
                     else:
                         if i[j]:
                             lengths = [len(x) for x in i[j]]
@@ -529,12 +522,6 @@ def create_group_obj(links,xlsx):
                 a.save_group()
         except:
             print( 'Hay un problema con ' + i)
-
-
-def CVLac():
-    lista = pd.read_excel(r'Lista completa.xlsx', sheet_name = 'Personal', header = 0).fillna('')
-
-    createobj(lista['CVLac'].tolist())
     
 def create_authors_xlsx():
 
@@ -672,5 +659,3 @@ def get_cvlac_link(code):
         pass
     return code
     
-
-create_groups_resume()

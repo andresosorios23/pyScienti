@@ -22,7 +22,9 @@
 *run.spec
 # Mono auto generated files
 mono_crash.*
-
+*.docx
+build/
+dist/
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
