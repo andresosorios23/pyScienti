@@ -1,10 +1,10 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-import pyscienti as pys
+import src.pyscienti as pys
 from tkinter import filedialog
 from shutil import rmtree
 from os import remove
 import pandas as pd
-
+VERSION = '1.3.0'
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -70,7 +70,8 @@ class Ui_MainWindow(object):
         self.label_4.setText("")
         try:
             self.label_4.setText(pys.Author(self.author_text.toPlainText()).to_xlsx())
-        except:
+        except Exception as e:
+            print(e)
             self.label_4.setText('Hay un problema con el enlace o código, o el perfil del investigador está vacío.')
 
 
@@ -150,7 +151,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", f"pyScienti {VERSION}"))
         self.author_btn.setText(_translate("MainWindow", "Crear resumen de investigador"))
         self.author_text.setToolTip(_translate("MainWindow", "<html><head/><body><p><br/></p></body></html>"))
         self.group_btn.setText(_translate("MainWindow", "Crear resumen de grupo"))
@@ -162,7 +163,7 @@ class Ui_MainWindow(object):
         self.com_btn.setText(_translate("MainWindow", "Crear resúmenes de grupos y de investigadores en el archivo \"comp.xlsx\""))
         self.clean_btn.setText(_translate("MainWindow", "Limpiar archivos antiguos"))
 
-import pic_rc
+import src.pic_rc as pic_rc
 
 
 if __name__ == "__main__":

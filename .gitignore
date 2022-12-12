@@ -18,8 +18,6 @@
 *.qrc
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
-*Pyscienti.zip
-*run.spec
 # Mono auto generated files
 mono_crash.*
 *.docx
