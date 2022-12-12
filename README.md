@@ -46,7 +46,7 @@ Se obtiene:\
 •	Lista de autores de los libros
 
 # Requerimientos
-•	Python 3.7 o superior\
+•	Python 3.7\
 •	pandas
 •	numpy
 •	xlrd
